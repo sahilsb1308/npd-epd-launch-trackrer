@@ -2,8 +2,8 @@ name: Update Automation Tab
 
 on:
   schedule:
-    # Every Monday at 7:00 AM IST (1:30 AM UTC)
-    - cron: '30 1 * * 1'
+    # Every Monday at 8:00 AM IST (2:30 AM UTC)
+    - cron: '30 2 * * 1'
   workflow_dispatch: # allow manual trigger from GitHub UI
 
 jobs:
