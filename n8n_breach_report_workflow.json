@@ -1,0 +1,143 @@
+{
+  "name": "NPD/EPD Weekly TAT Breach Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [1],
+              "triggerAtHour": 9,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "node-001",
+      "name": "Every Monday 9am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getRows",
+        "documentId": {
+          "__rl": true,
+          "value": "17Zs-ZI6sBFpxszmyiwt4oFzp1MTiqhEE1VtWyxsunv0",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "automation",
+          "mode": "name"
+        },
+        "filtersUI": {},
+        "options": {
+          "returnAllRows": true
+        }
+      },
+      "id": "node-002",
+      "name": "Read Automation Tab",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [460, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_GOOGLE_CREDENTIAL_ID",
+          "name": "REPLACE_WITH_YOUR_GOOGLE_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ─── CONFIG ───────────────────────────────────────────────────────\nconst OWNER_EMAIL_MAP = {\n  'Deepti':  'deepti@swissbeauty.in',\n  'Ayushi':  'ayushi@swissbeauty.in',\n  'Shreya':  'shreya@swissbeauty.in',\n  'Sharad':  'sharad@swissbeauty.in',\n  'Afzal':   'afzal@swissbeauty.in',\n  'Sheetal': 'sheetal@swissbeauty.in',\n  'Milan':   'milan@swissbeauty.in',\n  'Ananya':  'ananya@swissbeauty.in',\n  'Vidushi': 'vidushi@swissbeauty.in',\n  // add more owners here\n};\n\nconst CC = ['sahil.gaur@swissbeauty.in', 'mohit@swissbeauty.in'];\n\n// ─── HELPERS ──────────────────────────────────────────────────────\nfunction buildHtml(owner, rows, reportDate) {\n  const tableRows = rows.map(r => `\n    <tr>\n      <td class=\"td\">${r['Product']}</td>\n      <td class=\"td\">${r['Brand']}</td>\n      <td class=\"td\">${r['Team']}</td>\n      <td class=\"td\">${r['Plan Date'] || '—'}</td>\n      <td class=\"td\">${r['Given Date']}</td>\n      <td class=\"td\" style=\"color:#c0392b;font-weight:bold\">${r['Days Overdue']} days</td>\n    </tr>`).join('');\n\n  return `<!DOCTYPE html><html><head><style>\n    body{font-family:Arial,sans-serif;color:#333;font-size:14px}\n    h2{color:#1a1a2e}\n    table{border-collapse:collapse;width:100%;margin-top:16px}\n    th{background:#1a1a2e;color:#fff;padding:10px 12px;text-align:left;font-size:13px}\n    .td{padding:8px 12px;border:1px solid #ddd;vertical-align:top}\n    tr:nth-child(even) .td{background:#f9f9f9}\n    .footer{margin-top:20px;font-size:12px;color:#aaa}\n  </style></head><body>\n  <h2>⚠️ Weekly TAT Overdue Report</h2>\n  <p>Hi ${owner},</p>\n  <p>The following items have <strong>passed their Given Date but are still not delivered</strong>.\n  Action needed this week.</p>\n  <p>Report: <strong>${reportDate}</strong> &nbsp;|&nbsp; Overdue items: <strong>${rows.length}</strong></p>\n  <table>\n    <thead><tr>\n      <th>Product</th><th>Brand</th><th>Team</th>\n      <th>Plan Date</th><th>Given Date</th><th>Days Overdue</th>\n    </tr></thead>\n    <tbody>${tableRows}</tbody>\n  </table>\n  <p class=\"footer\">Automated weekly report · NPD/EPD Launch Tracker<br>\n  Please update the sheet once delivered.</p>\n  </body></html>`;\n}\n\n// ─── MAIN ─────────────────────────────────────────────────────────\nconst allRows = $input.all();\n\nif (allRows.length === 0) {\n  return [{ json: { _skip: true } }];\n}\n\n// First item might be empty if sheet has no data\nconst hasData = allRows.some(item => item.json['Product']);\nif (!hasData) {\n  return [{ json: { _skip: true } }];\n}\n\n// Group rows by owner\nconst byOwner = {};\nfor (const item of allRows) {\n  const row = item.json;\n  if (!row['Product']) continue;\n  const owner = row['Owner'] || 'Unknown';\n  if (!byOwner[owner]) byOwner[owner] = [];\n  byOwner[owner].push(row);\n}\n\nconst reportDate = allRows[0]?.json['Report Date'] || new Date().toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});\n\nreturn Object.entries(byOwner).map(([owner, rows]) => {\n  const ownerEmail = OWNER_EMAIL_MAP[owner];\n  const to = [...(ownerEmail ? [ownerEmail] : []), ...CC].join(', ');\n  const count = rows.length;\n  return {\n    json: {\n      _skip: false,\n      to,\n      subject: `⚠️ TAT Overdue Report – ${reportDate} · ${owner} has ${count} pending item${count !== 1 ? 's' : ''}`,\n      html_body: buildHtml(owner, rows, reportDate),\n      owner,\n      count,\n    }\n  };\n});"
+      },
+      "id": "node-003",
+      "name": "Build Emails by Owner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-01",
+              "leftValue": "={{ $json._skip }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-004",
+      "name": "Has Overdue Items?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.html_body }}",
+        "options": {}
+      },
+      "id": "node-005",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1120, 220],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_WITH_YOUR_GMAIL_CREDENTIAL_ID",
+          "name": "REPLACE_WITH_YOUR_GMAIL_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "node-006",
+      "name": "Nothing Overdue — Stop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1120, 400]
+    }
+  ],
+  "connections": {
+    "Every Monday 9am": {
+      "main": [[{ "node": "Read Automation Tab", "type": "main", "index": 0 }]]
+    },
+    "Read Automation Tab": {
+      "main": [[{ "node": "Build Emails by Owner", "type": "main", "index": 0 }]]
+    },
+    "Build Emails by Owner": {
+      "main": [[{ "node": "Has Overdue Items?", "type": "main", "index": 0 }]]
+    },
+    "Has Overdue Items?": {
+      "main": [
+        [{ "node": "Send Email", "type": "main", "index": 0 }],
+        [{ "node": "Nothing Overdue — Stop", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "meta": { "instanceId": "" }
+}
