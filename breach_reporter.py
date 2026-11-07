@@ -49,7 +49,7 @@ TEAMS = [
 # ─── AUTOMATION TAB HEADERS ───────────────────────────────────────────────────
 
 AUTO_HEADERS = [
-    "Type", "Product", "Brand", "Owner", "Team",
+    "Type", "Product", "Product Code", "Brand", "Owner", "Team",
     "Plan Date", "Given Date", "Actual Date",
     "Days Overdue (Given vs Today)", "Plan vs Actual (days)",
     "Report Date",
@@ -152,9 +152,10 @@ def main(dry_run: bool = False) -> None:
             if given_date and not actual_date and given_date < today:
                 # Still pending — given date passed, nothing delivered yet
                 days_overdue = (today - given_date).days
+                product_code = get_cell(row, COL_PRODUCT_CODE)
                 breach_rows.append([
                     "Pending (Not Delivered)",
-                    product, brand, owner or "Unknown", team_label,
+                    product, product_code, brand, owner or "Unknown", team_label,
                     plan_date.strftime("%d-%b") if plan_date else "",
                     given_date.strftime("%d-%b"),
                     "",           # no actual date
@@ -167,9 +168,10 @@ def main(dry_run: bool = False) -> None:
                 # Delivered but missed commitment (actual > given)
                 given_vs_actual = (actual_date - given_date).days
                 plan_vs_actual  = str((actual_date - plan_date).days) if plan_date else ""
+                product_code = get_cell(row, COL_PRODUCT_CODE)
                 breach_rows.append([
                     "Delivered Late",
-                    product, brand, owner or "Unknown", team_label,
+                    product, product_code, brand, owner or "Unknown", team_label,
                     plan_date.strftime("%d-%b") if plan_date else "",
                     given_date.strftime("%d-%b"),
                     actual_date.strftime("%d-%b"),
@@ -185,17 +187,18 @@ def main(dry_run: bool = False) -> None:
         print(f"\n{'='*110}")
         print(f"PENDING (not delivered, given date passed): {len(pending)}")
         print(f"{'='*110}")
-        print(f"{'Product':<38} {'Owner':<12} {'Team':<22} {'Given':<10} {'Days Overdue (vs Today)':<25} {'Plan→Today'}")
+        print(f"{'Product':<30} {'Code':<12} {'Owner':<12} {'Team':<22} {'Given':<10} {'Days Overdue (vs Today)'}")
         print("-" * 110)
         for r in pending:
-            print(f"{r[1]:<38} {r[3]:<12} {r[4]:<22} {r[6]:<10} {r[8]:<25} {r[9]}")
+            # r: Type, Product, ProductCode, Brand, Owner, Team, PlanDate, GivenDate, _, DaysOverdue, PlanVsActual, ReportDate
+            print(f"{r[1]:<30} {r[2]:<12} {r[4]:<12} {r[5]:<22} {r[7]:<10} {r[9]}")
         print(f"\n{'='*110}")
         print(f"DELIVERED LATE (actual > given commitment): {len(late)}")
         print(f"{'='*110}")
-        print(f"{'Product':<38} {'Owner':<12} {'Team':<22} {'Given':<10} {'Actual':<10} {'Given→Actual':<15} {'Plan→Actual'}")
+        print(f"{'Product':<30} {'Code':<12} {'Owner':<12} {'Team':<22} {'Given':<10} {'Actual':<10} {'Given→Actual':<15} {'Plan→Actual'}")
         print("-" * 110)
         for r in late:
-            print(f"{r[1]:<38} {r[3]:<12} {r[4]:<22} {r[6]:<10} {r[7]:<10} {r[8]:<15} {r[9]}")
+            print(f"{r[1]:<30} {r[2]:<12} {r[4]:<12} {r[5]:<22} {r[7]:<10} {r[8]:<10} {r[9]:<15} {r[10]}")
         return
 
     if not breach_rows:
