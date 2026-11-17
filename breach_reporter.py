@@ -33,17 +33,19 @@ SERVICE_ACCOUNT_FILE = os.environ.get(
 # ─── SHEET COLUMN MAPPING (0-based; data rows start after 4 header rows) ─────
 
 COL_BRAND        = 0   # A
-COL_OWNER        = 1   # B
+COL_NPD_OWNER    = 1   # B — NPD owner
+COL_CONTENT_OWN  = 2   # C — Content team owner
+COL_DESIGNER     = 3   # D — Designer
 COL_PRODUCT_NAME = 5   # F
 COL_PRODUCT_CODE = 6   # G
 
-# (team_label, plan_col, given_col, actual_col) — 0-based
+# (team_label, plan_col, given_col, actual_col, owner_col) — 0-based
 TEAMS = [
-    ("NPD Team",           11, 12, 13),  # L, M, N
-    ("Content Team",       14, 15, 16),  # O, P, Q
-    ("Legal",              17, 18, 19),  # R, S, T
-    ("Design Team",        20, 21, 22),  # U, V, W
-    ("Ready Date (China)", 23, 24, 25),  # X, Y, Z
+    ("NPD Team",           11, 12, 13, COL_NPD_OWNER),    # L, M, N → col B
+    ("Content Team",       14, 15, 16, COL_CONTENT_OWN),  # O, P, Q → col C
+    ("Legal",              17, 18, 19, COL_NPD_OWNER),    # R, S, T → col B
+    ("Design Team",        20, 21, 22, COL_DESIGNER),     # U, V, W → col D
+    ("Ready Date (China)", 23, 24, 25, COL_NPD_OWNER),    # X, Y, Z → col B
 ]
 
 # ─── AUTOMATION TAB HEADERS ───────────────────────────────────────────────────
@@ -138,16 +140,16 @@ def main(dry_run: bool = False) -> None:
 
     for row in rows:
         brand   = get_cell(row, COL_BRAND)
-        owner   = get_cell(row, COL_OWNER)
         product = get_cell(row, COL_PRODUCT_NAME)
 
         if not product:
             continue
 
-        for team_label, plan_col, given_col, actual_col in TEAMS:
+        for team_label, plan_col, given_col, actual_col, owner_col in TEAMS:
             plan_date   = parse_date(get_cell(row, plan_col))
             given_date  = parse_date(get_cell(row, given_col))
             actual_date = parse_date(get_cell(row, actual_col))
+            team_owner  = get_cell(row, owner_col) or "Unknown"
 
             if given_date and not actual_date and given_date < today:
                 # Still pending — given date passed, nothing delivered yet
@@ -155,7 +157,7 @@ def main(dry_run: bool = False) -> None:
                 product_code = get_cell(row, COL_PRODUCT_CODE)
                 breach_rows.append([
                     "Pending (Not Delivered)",
-                    product, product_code, brand, owner or "Unknown", team_label,
+                    product, product_code, brand, team_owner, team_label,
                     plan_date.strftime("%d-%b") if plan_date else "",
                     given_date.strftime("%d-%b"),
                     "",           # no actual date
@@ -171,7 +173,7 @@ def main(dry_run: bool = False) -> None:
                 product_code = get_cell(row, COL_PRODUCT_CODE)
                 breach_rows.append([
                     "Delivered Late",
-                    product, product_code, brand, owner or "Unknown", team_label,
+                    product, product_code, brand, team_owner, team_label,
                     plan_date.strftime("%d-%b") if plan_date else "",
                     given_date.strftime("%d-%b"),
                     actual_date.strftime("%d-%b"),
