@@ -186,20 +186,6 @@ def main(dry_run: bool = False) -> None:
                 today.strftime("%d-%b-%Y"),
             ])
 
-    # ── Deduplicate: one entry per (type, owner, product, code) — keep most overdue ──
-    seen: dict = {}
-    for r in breach_rows:
-        key = (r[0], r[4], r[1], r[2])  # type, owner, product, product_code
-        existing = seen.get(key)
-        if existing is None:
-            seen[key] = r
-        else:
-            curr_days  = int(r[9])        if r[9].lstrip("-").isdigit()        else 0
-            prev_days  = int(existing[9]) if existing[9].lstrip("-").isdigit() else 0
-            if curr_days > prev_days:
-                seen[key] = r
-    breach_rows = list(seen.values())
-
     # ── Output ────────────────────────────────────────────────────────────────
     if dry_run:
         pending  = [r for r in breach_rows if r[0] == "Pending (Not Delivered)"]
