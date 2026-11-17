@@ -38,6 +38,8 @@ COL_CONTENT_OWN  = 2   # C — Content team owner
 COL_DESIGNER     = 3   # D — Designer
 COL_PRODUCT_NAME = 5   # F
 COL_PRODUCT_CODE = 6   # G
+COL_OVERALL_PLAN = 27  # AB — overall plan date
+COL_OVERALL_ACT  = 28  # AC — overall actual date
 
 # (team_label, plan_col, given_col, actual_col, owner_col) — 0-based
 TEAMS = [
@@ -145,6 +147,10 @@ def main(dry_run: bool = False) -> None:
         if not product:
             continue
 
+        product_code = get_cell(row, COL_PRODUCT_CODE)
+        npd_owner    = get_cell(row, COL_NPD_OWNER) or "Unknown"
+
+        # ── Pending: check each team's given date independently ──────────
         for team_label, plan_col, given_col, actual_col, owner_col in TEAMS:
             plan_date   = parse_date(get_cell(row, plan_col))
             given_date  = parse_date(get_cell(row, given_col))
@@ -152,35 +158,33 @@ def main(dry_run: bool = False) -> None:
             team_owner  = get_cell(row, owner_col) or "Unknown"
 
             if given_date and not actual_date and given_date < today:
-                # Still pending — given date passed, nothing delivered yet
                 days_overdue = (today - given_date).days
-                product_code = get_cell(row, COL_PRODUCT_CODE)
                 breach_rows.append([
                     "Pending (Not Delivered)",
                     product, product_code, brand, team_owner, team_label,
                     plan_date.strftime("%d-%b") if plan_date else "",
                     given_date.strftime("%d-%b"),
-                    "",           # no actual date
+                    "",
                     str(days_overdue),
-                    "",           # Plan vs Actual not applicable — actual is null
+                    "",
                     today.strftime("%d-%b-%Y"),
                 ])
 
-            elif given_date and actual_date and actual_date > given_date:
-                # Delivered but missed commitment (actual > given)
-                given_vs_actual = (actual_date - given_date).days
-                plan_vs_actual  = str((actual_date - plan_date).days) if plan_date else ""
-                product_code = get_cell(row, COL_PRODUCT_CODE)
-                breach_rows.append([
-                    "Delivered Late",
-                    product, product_code, brand, team_owner, team_label,
-                    plan_date.strftime("%d-%b") if plan_date else "",
-                    given_date.strftime("%d-%b"),
-                    actual_date.strftime("%d-%b"),
-                    str(given_vs_actual),
-                    plan_vs_actual,
-                    today.strftime("%d-%b-%Y"),
-                ])
+        # ── Delivered Late: overall AB (plan) vs AC (actual) ─────────────
+        overall_plan = parse_date(get_cell(row, COL_OVERALL_PLAN))
+        overall_act  = parse_date(get_cell(row, COL_OVERALL_ACT))
+        if overall_plan and overall_act and overall_act > overall_plan:
+            days_late = (overall_act - overall_plan).days
+            breach_rows.append([
+                "Delivered Late",
+                product, product_code, brand, npd_owner, "Overall",
+                overall_plan.strftime("%d-%b"),
+                "",
+                overall_act.strftime("%d-%b"),
+                str(days_late),
+                str(days_late),
+                today.strftime("%d-%b-%Y"),
+            ])
 
     # ── Output ────────────────────────────────────────────────────────────────
     if dry_run:
