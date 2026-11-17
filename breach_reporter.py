@@ -186,10 +186,11 @@ def main(dry_run: bool = False) -> None:
                 today.strftime("%d-%b-%Y"),
             ])
 
-    # ── Deduplicate: one entry per (owner, product_code) — keep least overdue ──
+    # ── Deduplicate: one entry per (owner, product_code or product_name) — keep least overdue ──
     seen: dict = {}
     for r in breach_rows:
-        key = (r[4], r[2])  # owner, product_code
+        code_or_name = r[2] if r[2] and r[2] != "—" else r[1]
+        key = (r[4], code_or_name)  # owner, product_code (fallback to name if no code)
         existing = seen.get(key)
         if existing is None:
             seen[key] = r
